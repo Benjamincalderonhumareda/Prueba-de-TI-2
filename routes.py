@@ -2,10 +2,9 @@
 # routes.py — Los endpoints de la API: qué pasa cuando llega cada petición
 # ============================================================================
 from flask import Blueprint, request, jsonify
-from models import db, Usuario
+from models import db, Usuario, LecturaPuente
 
-# Un Blueprint agrupa un conjunto de rutas relacionadas (aquí, todas las
-# de usuarios) para luego "engancharlas" a la app principal en run.py.
+# Un Blueprint agrupa un conjunto de rutas relacionadas para luego "engancharlas" a la app principal en run.py.
 usuarios_bp = Blueprint("usuarios", __name__)
 
 
@@ -71,3 +70,41 @@ def eliminar_usuario(usuario_id):
     db.session.commit()
 
     return jsonify({"mensaje": "Usuario eliminado correctamente."})
+
+
+# ============================================================================
+# ENDPOINTS PARA EL SISTEMA DE ALERTA TEMPRANA DE HUAYCO (ARDUINO/PUENTE)
+# ============================================================================
+
+@usuarios_bp.route("/alertas", methods=["POST"])
+def registrar_alerta():
+    """POST /alertas → Recibe la medicion enviada por el Arduino y la guarda en Neon."""
+    datos = request.get_json()
+
+    if not datos or "nivel_caudal" not in datos or "estado_puente" not in datos:
+        return jsonify({"error": "Faltan datos obligatorios (nivel_caudal, estado_puente)."}), 400
+
+    nueva_lectura = LecturaPuente(
+        nombre_puente=datos.get("nombre_puente", "Puente Carapongo"),
+        nivel_caudal=float(datos["nivel_caudal"]),
+        estado_puente=datos["estado_puente"]
+    )
+
+    db.session.add(nueva_lectura)
+    db.session.commit()
+
+    return jsonify({
+        "mensaje": "Alerta registrada correctamente.",
+        "datos": nueva_lectura.to_dict()
+    }), 201
+
+
+@usuarios_bp.route("/alertas/estado-actual", methods=["GET"])
+def obtener_estado_actual():
+    """GET /alertas/estado-actual → Devuelve el registro mas reciente para la App Movil."""
+    ultima_lectura = LecturaPuente.query.order_by(LecturaPuente.fecha_registro.desc()).first()
+
+    if ultima_lectura is None:
+        return jsonify({"mensaje": "Sin registros de alertas todavia."}), 404
+
+    return jsonify(ultima_lectura.to_dict())
