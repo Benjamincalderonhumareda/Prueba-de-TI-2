@@ -9,22 +9,20 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
-class Usuario(db.Model):
-    __tablename__ = "usuarios"
+class LecturaPuente(db.Model):
+    __tablename__ = 'lecturas_puente'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), nullable=False, unique=True)
-    edad = db.Column(db.Integer, nullable=True)
-    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_puente = db.Column(db.String(100), nullable=False)
+    nivel_caudal = db.Column(db.Float, nullable=False)
+    estado_puente = db.Column(db.String(20), nullable=False)
+    fecha_registro = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     def to_dict(self):
-        """Convierte el objeto Usuario en un diccionario, para poder
-        devolverlo como JSON en las respuestas de la API."""
         return {
             "id": self.id,
-            "nombre": self.nombre,
-            "email": self.email,
-            "edad": self.edad,
-            "fecha_creacion": self.fecha_creacion.isoformat() if self.fecha_creacion else None,
+            "nombre_puente": self.nombre_puente,
+            "nivel_caudal": self.nivel_caudal,
+            "estado_puente": self.estado_puente,
+            "fecha_registro": self.fecha_registro.strftime("%Y-%m-%d %H:%M:%S") if self.fecha_registro else None
         }
