@@ -108,3 +108,9 @@ def obtener_estado_actual():
         return jsonify({"mensaje": "Sin registros de alertas todavia."}), 404
 
     return jsonify(ultima_lectura.to_dict())
+
+@usuarios_bp.route("/alertas/historial", methods=["GET"])
+def obtener_historial_alertas():
+    """GET /alertas/historial → Devuelve TODOS los registros guardados en Neon."""
+    lecturas = LecturaPuente.query.order_by(LecturaPuente.fecha_registro.desc()).all()
+    return jsonify([l.to_dict() for l in lecturas])
