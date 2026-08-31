@@ -99,7 +99,7 @@ def registrar_alerta():
     }), 201
 
 
-@usuarios_bp.route("/alertas/estado-actual", methods=["GET"])
+@usuarios_bp.route("/alertas/ultimo-registro", methods=["GET"])
 def obtener_estado_actual():
     """GET /alertas/estado-actual → Devuelve el registro mas reciente para la App Movil."""
     ultima_lectura = LecturaPuente.query.order_by(LecturaPuente.fecha_registro.desc()).first()
@@ -114,3 +114,13 @@ def obtener_historial_alertas():
     """GET /alertas/historial → Devuelve TODOS los registros guardados en Neon."""
     lecturas = LecturaPuente.query.order_by(LecturaPuente.fecha_registro.desc()).all()
     return jsonify([l.to_dict() for l in lecturas])
+
+@usuarios_bp.route("/alertas/<int:alerta_id>", methods=["GET"])
+def obtener_alerta_por_id(alerta_id):
+    """GET /alertas/1 → busca y devuelve la lectura específica por su id."""
+    alerta = db.session.get(LecturaPuente, alerta_id)
+    
+    if alerta is None:
+        return jsonify({"error": "Alerta no encontrada."}), 404
+        
+    return jsonify(alerta.to_dict()), 200
