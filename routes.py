@@ -124,3 +124,12 @@ def obtener_alerta_por_id(alerta_id):
         return jsonify({"error": "Alerta no encontrada."}), 404
         
     return jsonify(alerta.to_dict()), 200
+
+@usuarios_bp.route("/alertas/<int:alerta_id>", methods=["DELETE"])
+def eliminar_alerta(alerta_id):
+    alerta = db.session.get(LecturaPuente, alerta_id)
+    if alerta is None:
+        return jsonify({"error": "Alerta no encontrada."}), 404
+    db.session.delete(alerta)
+    db.session.commit()
+    return jsonify({"mensaje": "Alerta eliminada correctamente."})
