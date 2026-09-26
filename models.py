@@ -40,8 +40,6 @@ class LecturaPuente(db.Model):
             "id": self.id,
             "nombre_puente": self.nombre_puente,
             "altura_agua": self.altura_agua,
-            # Alias temporal para clientes frontend que aún esperan el nombre anterior.
-            "nivel_caudal": self.altura_agua,
             "altura_puente": self.altura_puente,
             "estado_puente": self.estado_puente,
             "fecha_registro": self.fecha_registro.strftime("%Y-%m-%d %H:%M:%S") if self.fecha_registro else None
