@@ -30,7 +30,8 @@ class LecturaPuente(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     nombre_puente = db.Column(db.String(100), nullable=False)
-    nivel_caudal = db.Column(db.Float, nullable=False)
+    altura_agua = db.Column(db.Float, nullable=True)
+    altura_puente = db.Column(db.Float, nullable=True)
     estado_puente = db.Column(db.String(20), nullable=False)
     fecha_registro = db.Column(db.DateTime, default=db.func.current_timestamp())
 
@@ -38,7 +39,10 @@ class LecturaPuente(db.Model):
         return {
             "id": self.id,
             "nombre_puente": self.nombre_puente,
-            "nivel_caudal": self.nivel_caudal,
+            "altura_agua": self.altura_agua,
+            # Alias temporal para clientes frontend que aún esperan el nombre anterior.
+            "nivel_caudal": self.altura_agua,
+            "altura_puente": self.altura_puente,
             "estado_puente": self.estado_puente,
             "fecha_registro": self.fecha_registro.strftime("%Y-%m-%d %H:%M:%S") if self.fecha_registro else None
         }

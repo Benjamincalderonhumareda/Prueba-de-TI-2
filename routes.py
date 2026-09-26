@@ -81,12 +81,16 @@ def registrar_alerta():
     """POST /alertas → Recibe la medicion enviada por el Arduino y la guarda en Neon."""
     datos = request.get_json()
 
-    if not datos or "nivel_caudal" not in datos or "estado_puente" not in datos:
-        return jsonify({"error": "Faltan datos obligatorios (nivel_caudal, estado_puente)."}), 400
+    if not datos or ("altura_agua" not in datos and "nivel_caudal" not in datos) or "estado_puente" not in datos:
+        return jsonify({"error": "Faltan datos obligatorios (altura_agua o nivel_caudal, estado_puente)."}), 400
+
+    # Acepta nivel_caudal para mantener compatibilidad con el frontend anterior.
+    altura_agua = datos.get("altura_agua", datos.get("nivel_caudal"))
 
     nueva_lectura = LecturaPuente(
         nombre_puente=datos.get("nombre_puente", "Puente Carapongo"),
-        nivel_caudal=float(datos["nivel_caudal"]),
+        altura_agua=float(altura_agua),
+        altura_puente=float(datos["altura_puente"]) if datos.get("altura_puente") is not None else None,
         estado_puente=datos["estado_puente"]
     )
 
@@ -100,12 +104,13 @@ def registrar_alerta():
 
 
 @usuarios_bp.route("/alertas/ultimo-registro", methods=["GET"])
+@usuarios_bp.route("/alertas/estado-actual", methods=["GET"])
 def obtener_estado_actual():
-    """GET /alertas/estado-actual → Devuelve el registro mas reciente para la App Movil."""
+    """GET /alertas/estado-actual → Devuelve el registro más reciente para la App Móvil."""
     ultima_lectura = LecturaPuente.query.order_by(LecturaPuente.fecha_registro.desc()).first()
 
     if ultima_lectura is None:
-        return jsonify({"mensaje": "Sin registros de alertas todavia."}), 404
+        return jsonify({"mensaje": "Sin registros de alertas todavía."}), 404
 
     return jsonify(ultima_lectura.to_dict())
 

@@ -7,6 +7,8 @@ from flask_cors import CORS  # Habilita permisos de acceso para la App Móvil/We
 from config import Config
 from models import db
 from routes import usuarios_bp
+from flask_swagger_ui import get_swaggerui_blueprint
+from openapi import OPENAPI_SPEC
 
 # 1. Crear la aplicación Flask
 app = Flask(__name__)
@@ -22,6 +24,13 @@ db.init_app(app)
 
 # 5. Registrar las rutas de usuarios (routes.py) en la app
 app.register_blueprint(usuarios_bp)
+
+# Documentación interactiva para explorar y probar la API.
+app.add_url_rule("/openapi.json", "openapi_json", lambda: jsonify(OPENAPI_SPEC))
+swagger_ui = get_swaggerui_blueprint(
+    "/docs", "/openapi.json", config={"app_name": "API Mayu"}
+)
+app.register_blueprint(swagger_ui, url_prefix="/docs")
 
 # 6. Crear las tablas en la base de datos si no existen todavía
 with app.app_context():
@@ -42,7 +51,9 @@ def inicio():
             "GET /alertas/historial": "Obtiene todas las lecturas del puente",
             "GET /alertas/estado-actual": "Obtiene la última lectura del puente",
             "POST /alertas": "Registra una nueva lectura del sensor",
-            "DELETE /alertas/<id>": "Elimina una lectura por su id"
+            "DELETE /alertas/<id>": "Elimina una lectura por su id",
+            "GET /docs": "Documentación interactiva Swagger UI",
+            "GET /openapi.json": "Especificación OpenAPI de la API",
         },
     })
 

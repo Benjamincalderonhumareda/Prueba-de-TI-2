@@ -10,17 +10,11 @@ load_dotenv()
 
 def obtener_database_uri():
     """
-    Lee la cadena de conexión desde la variable de entorno DATABASE_URL
-    (la que te da Neon) y la adapta para que SQLAlchemy la entienda.
+    Lee la cadena de conexión desde la variable de entorno DATABASE_URL.
+    Si no existe, usa SQLite local para facilitar el desarrollo sin
+    depender de un servicio externo como Neon.
     """
-    database_url = os.environ.get("DATABASE_URL")
-
-    if not database_url:
-        raise RuntimeError(
-            "Falta la variable de entorno DATABASE_URL.\n"
-            "Crea un archivo .env (puedes copiar .env.example) y pega ahí "
-            "la cadena de conexión que te da Neon."
-        )
+    database_url = os.environ.get("DATABASE_URL") or "sqlite:///local.db"
 
     # SQLAlchemy necesita el driver "psycopg" explícito en la URL
     if database_url.startswith("postgres://"):

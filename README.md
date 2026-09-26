@@ -86,9 +86,32 @@ DATABASE_URL=postgresql://usuario:contraseña@ep-xxxxx.us-east-2.aws.neon.tech/n
 
 ## 5. Ejecutar la API
 
+Si la base de Neon ya existía, primero ejecuta una vez el contenido de
+`migration_alturas.sql` en el SQL Editor de Neon para agregar las columnas
+de altura. Los registros anteriores conservarán sus datos de caudal y las
+nuevas alturas aparecerán vacías hasta que se registren.
+
 ```bash
 python run.py
 ```
+
+Para registrar una alerta, envía `altura_agua` en metros. `altura_puente`
+también se expresa en metros y es opcional hasta que registres esa medida:
+
+```json
+{
+  "nombre_puente": "Puente Carapongo",
+  "altura_agua": 1.25,
+  "altura_puente": 5.0,
+  "estado_puente": "normal"
+}
+```
+
+Swagger UI queda disponible en **http://127.0.0.1:5001/docs/** y la
+especificación OpenAPI en **http://127.0.0.1:5001/openapi.json**. Desde
+Swagger puedes consultar los endpoints y probar solicitudes. Para conectar
+el frontend, usa `http://127.0.0.1:5001` como URL base y rutas como
+`/usuarios` o `/alertas/estado-actual`.
 
 Verás algo como:
 
