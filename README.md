@@ -86,10 +86,27 @@ DATABASE_URL=postgresql://usuario:contraseña@ep-xxxxx.us-east-2.aws.neon.tech/n
 
 ## 5. Ejecutar la API
 
-Si la base de Neon ya existía, primero ejecuta una vez el contenido de
-`migration_alturas.sql` en el SQL Editor de Neon para agregar las columnas
-de altura. Los registros anteriores conservarán sus datos de caudal y las
-nuevas alturas aparecerán vacías hasta que se registren.
+Si la base de Neon ya existía, primero ejecuta `migration_alturas.sql` si aún
+no tiene las columnas de altura. Antes de activar escrituras por puente,
+consulta duplicados con:
+
+```sql
+SELECT nombre_puente, COUNT(*)
+FROM lecturas_puente
+GROUP BY nombre_puente
+HAVING COUNT(*) > 1;
+```
+
+Resuelve manualmente cualquier duplicado (sin borrar filas automáticamente),
+y luego ejecuta `migration_historial.sql` en el SQL Editor de Neon. La
+migración se interrumpe si todavía hay nombres duplicados y crea un índice
+único por `nombre_puente`. El endpoint `POST /alertas` requiere ese nombre
+estable y actualiza la fila existente. `GET /alertas/historial` devuelve las
+transiciones de estado creadas por el trigger, con `nombre_puente`,
+`estado_anterior`, `estado_nuevo` y `fecha_cambio`.
+`GET /alertas` lista la lectura actual de cada puente. El frontend debe consultar
+`GET /alertas` para los valores actuales y `GET /alertas/historial` para mostrar
+las transiciones con `estado_anterior`, `estado_nuevo` y `fecha_cambio`.
 
 ```bash
 python run.py

@@ -2,7 +2,7 @@
 # routes.py — Los endpoints de la API: qué pasa cuando llega cada petición
 # ============================================================================
 from flask import Blueprint, request, jsonify
-from models import db, Usuario, LecturaPuente
+from models import db, Usuario, LecturaPuente, HistorialEstadoPuente
 
 # Un Blueprint agrupa un conjunto de rutas relacionadas para luego "engancharlas" a la app principal en run.py.
 usuarios_bp = Blueprint("usuarios", __name__)
@@ -76,31 +76,51 @@ def eliminar_usuario(usuario_id):
 # ENDPOINTS PARA EL SISTEMA DE ALERTA TEMPRANA DE HUAYCO (ARDUINO/PUENTE)
 # ============================================================================
 
+@usuarios_bp.route("/alertas", methods=["GET"])
+def listar_alertas():
+    """Devuelve la lectura actual de cada puente."""
+    lecturas = LecturaPuente.query.order_by(LecturaPuente.nombre_puente.asc()).all()
+    return jsonify([lectura.to_dict() for lectura in lecturas])
+
 @usuarios_bp.route("/alertas", methods=["POST"])
 def registrar_alerta():
     """POST /alertas → Recibe la medicion enviada por el Arduino y la guarda en Neon."""
     datos = request.get_json()
 
-    if not datos or ("altura_agua" not in datos and "nivel_caudal" not in datos) or "estado_puente" not in datos:
-        return jsonify({"error": "Faltan datos obligatorios (altura_agua o nivel_caudal, estado_puente)."}), 400
+    if not datos or ("altura_agua" not in datos and "nivel_caudal" not in datos) or "estado_puente" not in datos or not isinstance(datos.get("nombre_puente"), str) or not datos["nombre_puente"].strip():
+        return jsonify({"error": "Se requieren nombre_puente, altura_agua (o nivel_caudal) y estado_puente."}), 400
 
     # Acepta nivel_caudal para mantener compatibilidad con el frontend anterior.
     altura_agua = datos.get("altura_agua", datos.get("nivel_caudal"))
 
-    nueva_lectura = LecturaPuente(
-        nombre_puente=datos.get("nombre_puente", "Puente Carapongo"),
+    nombre_puente = datos["nombre_puente"].strip()
+
+    # nombre_puente es la clave estable; la unicidad debe habilitarse en Neon
+    # después de revisar y resolver manualmente cualquier duplicado existente.
+    lectura = LecturaPuente.query.filter_by(nombre_puente=nombre_puente).with_for_update().first()
+    if LecturaPuente.query.filter_by(nombre_puente=nombre_puente).count() > 1:
+        return jsonify({"error": "Hay varias filas para este puente; resuelva los duplicados antes de actualizar."}), 409
+
+    valores = dict(
         altura_agua=float(altura_agua),
         altura_puente=float(datos["altura_puente"]) if datos.get("altura_puente") is not None else None,
         estado_puente=datos["estado_puente"]
     )
-
-    db.session.add(nueva_lectura)
+    if lectura:
+        for campo, valor in valores.items():
+            setattr(lectura, campo, valor)
+        lectura.fecha_registro = db.func.current_timestamp()
+        nueva = False
+    else:
+        lectura = LecturaPuente(nombre_puente=nombre_puente, **valores)
+        db.session.add(lectura)
+        nueva = True
     db.session.commit()
 
     return jsonify({
-        "mensaje": "Alerta registrada correctamente.",
-        "datos": nueva_lectura.to_dict()
-    }), 201
+        "mensaje": "Alerta registrada correctamente." if nueva else "Lectura actualizada correctamente.",
+        "datos": lectura.to_dict()
+    }), 201 if nueva else 200
 
 
 @usuarios_bp.route("/alertas/ultimo-registro", methods=["GET"])
@@ -116,9 +136,9 @@ def obtener_estado_actual():
 
 @usuarios_bp.route("/alertas/historial", methods=["GET"])
 def obtener_historial_alertas():
-    """GET /alertas/historial → Devuelve TODOS los registros guardados en Neon."""
-    lecturas = LecturaPuente.query.order_by(LecturaPuente.fecha_registro.desc()).all()
-    return jsonify([l.to_dict() for l in lecturas])
+    """Devuelve las transiciones de estado almacenadas por el trigger de Neon."""
+    historial = HistorialEstadoPuente.query.order_by(HistorialEstadoPuente.fecha_cambio.desc()).all()
+    return jsonify([registro.to_dict() for registro in historial])
 
 @usuarios_bp.route("/alertas/<int:alerta_id>", methods=["GET"])
 def obtener_alerta_por_id(alerta_id):

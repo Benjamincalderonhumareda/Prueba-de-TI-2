@@ -3,6 +3,7 @@
 # ============================================================================
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSONB
 
 # db es el objeto que usamos en todo el proyecto para hablar con la base de datos.
 db = SQLAlchemy()
@@ -43,4 +44,27 @@ class LecturaPuente(db.Model):
             "altura_puente": self.altura_puente,
             "estado_puente": self.estado_puente,
             "fecha_registro": self.fecha_registro.strftime("%Y-%m-%d %H:%M:%S") if self.fecha_registro else None
+        }
+
+
+class HistorialEstadoPuente(db.Model):
+    __tablename__ = 'historial_estados_puente'
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    lectura_id = db.Column(db.Integer, nullable=True)
+    nombre_puente = db.Column(db.String(100), nullable=False)
+    estado_anterior = db.Column(db.String(20), nullable=False)
+    estado_nuevo = db.Column(db.String(20), nullable=False)
+    datos_anteriores = db.Column(db.JSON().with_variant(JSONB, "postgresql"), nullable=False)
+    fecha_cambio = db.Column(db.DateTime(timezone=True), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "lectura_id": self.lectura_id,
+            "nombre_puente": self.nombre_puente,
+            "estado_anterior": self.estado_anterior,
+            "estado_nuevo": self.estado_nuevo,
+            "datos_anteriores": self.datos_anteriores,
+            "fecha_cambio": self.fecha_cambio.isoformat() if self.fecha_cambio else None,
         }
