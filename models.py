@@ -68,3 +68,15 @@ class HistorialEstadoPuente(db.Model):
             "datos_anteriores": self.datos_anteriores,
             "fecha_cambio": self.fecha_cambio.isoformat() if self.fecha_cambio else None,
         }
+
+
+class PushSubscription(db.Model):
+    __tablename__ = "push_subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    endpoint = db.Column(db.Text, unique=True, nullable=False, index=True)
+    subscription = db.Column(db.JSON().with_variant(JSONB, "postgresql"), nullable=False)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    bridge_ids = db.Column(db.JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())

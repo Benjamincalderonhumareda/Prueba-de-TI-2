@@ -11,6 +11,7 @@ OPENAPI_SPEC = {
     "tags": [
         {"name": "Usuarios"},
         {"name": "Alertas"},
+        {"name": "Notificaciones"},
     ],
     "paths": {
         "/usuarios": {
@@ -37,6 +38,49 @@ OPENAPI_SPEC = {
         "/alertas/estado-actual": {"get": {"tags": ["Alertas"], "summary": "Obtiene la lectura más reciente", "responses": {"200": {"description": "Lectura actual", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Alerta"}}}}, "404": {"description": "Sin registros"}}}},
         "/alertas/ultimo-registro": {"get": {"tags": ["Alertas"], "summary": "Alias de estado actual", "responses": {"200": {"description": "Lectura actual"}, "404": {"description": "Sin registros"}}}},
         "/alertas/historial": {"get": {"tags": ["Alertas"], "summary": "Lista transiciones de estado por fecha descendente", "responses": {"200": {"description": "Transiciones registradas por Neon", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/HistorialEstadoPuente"}}}}}}}},
+        "/notificaciones/clave-publica": {
+            "get": {
+                "tags": ["Notificaciones"],
+                "summary": "Devuelve la clave pública VAPID para el navegador",
+                "responses": {
+                    "200": {
+                        "description": "Clave pública VAPID",
+                        "content": {"application/json": {"schema": {
+                            "type": "object",
+                            "properties": {"publicKey": {"type": "string"}},
+                        }}},
+                    },
+                    "503": {"description": "Web Push no está configurado"},
+                },
+            },
+        },
+        "/notificaciones/suscripciones": {
+            "post": {
+                "tags": ["Notificaciones"],
+                "summary": "Registra o actualiza una suscripción por dispositivo",
+                "requestBody": {"required": True, "content": {"application/json": {
+                    "schema": {"$ref": "#/components/schemas/NuevaSuscripcionPush"},
+                }}},
+                "responses": {
+                    "200": {"description": "Suscripción actualizada"},
+                    "201": {"description": "Suscripción creada"},
+                    "400": {"description": "Suscripción inválida"},
+                },
+            },
+            "delete": {
+                "tags": ["Notificaciones"],
+                "summary": "Retira la suscripción del dispositivo",
+                "requestBody": {"required": True, "content": {"application/json": {
+                    "schema": {"type": "object", "required": ["endpoint"], "properties": {
+                        "endpoint": {"type": "string", "format": "uri"},
+                    }},
+                }}},
+                "responses": {
+                    "200": {"description": "Suscripción retirada"},
+                    "400": {"description": "Endpoint inválido"},
+                },
+            },
+        },
         "/alertas/{alerta_id}": {
             "parameters": [{"name": "alerta_id", "in": "path", "required": True, "schema": {"type": "integer"}}],
             "get": {"tags": ["Alertas"], "summary": "Busca una lectura por ID", "responses": {"200": {"description": "Lectura encontrada", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Alerta"}}}}, "404": {"description": "Lectura no encontrada"}}},
@@ -45,6 +89,29 @@ OPENAPI_SPEC = {
     },
     "components": {
         "schemas": {
+            "NuevaSuscripcionPush": {
+                "type": "object",
+                "required": ["subscription"],
+                "properties": {
+                    "subscription": {
+                        "type": "object",
+                        "required": ["endpoint", "keys"],
+                        "properties": {
+                            "endpoint": {"type": "string", "format": "uri"},
+                            "keys": {
+                                "type": "object",
+                                "required": ["p256dh", "auth"],
+                                "properties": {
+                                    "p256dh": {"type": "string"},
+                                    "auth": {"type": "string"},
+                                },
+                            },
+                        },
+                    },
+                    "enabled": {"type": "boolean", "default": True},
+                    "bridges": {"type": "array", "items": {"type": "string"}},
+                },
+            },
             "Usuario": {"type": "object", "properties": {"id": {"type": "integer"}, "nombre": {"type": "string"}, "email": {"type": "string", "format": "email"}, "edad": {"type": "integer", "nullable": True}}},
             "NuevoUsuario": {"type": "object", "required": ["nombre", "email"], "properties": {"nombre": {"type": "string", "example": "Ana Torres"}, "email": {"type": "string", "format": "email", "example": "ana@example.com"}, "edad": {"type": "integer", "nullable": True, "example": 25}}},
             "ActualizarUsuario": {"type": "object", "properties": {"nombre": {"type": "string"}, "email": {"type": "string", "format": "email"}, "edad": {"type": "integer", "nullable": True}}},

@@ -211,3 +211,34 @@ computadora, así que no se pierden.
 **¿Puedo ver mis datos directamente en Neon?**
 Sí. En el dashboard de Neon hay un "SQL Editor" donde puedes correr
 `SELECT * FROM usuarios;` y ver tus filas directamente.
+
+## Notificaciones Web Push
+
+La API guarda una suscripción por dispositivo en `push_subscriptions`. Para Neon,
+ejecuta `migration_push_subscriptions.sql` una vez (si la tabla ya fue creada por
+`db.create_all()`, la migración es compatible). Al actualizar una lectura, la API
+envía un aviso únicamente si cambia el estado a `Alerta` o `Cerrado`; las lecturas
+que solo cambian la altura no generan avisos. Las suscripciones que el proveedor
+responda como vencidas (`404` o `410`) se eliminan automáticamente.
+
+Configura en el entorno del servidor `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y
+`VAPID_SUBJECT` (por ejemplo, `mailto:contacto@tu-dominio.pe`). La clave pública
+la entrega `GET /notificaciones/clave-publica`. La clave privada debe ser una
+variable secreta del despliegue, nunca un dato de Neon, Git ni del frontend. Para
+generar las claves localmente, ejecuta `vapid --gen`; obtén la clave pública para
+el navegador con `vapid --applicationServerKey`. Guarda el PEM de `private_key.pem`
+como secreto `VAPID_PRIVATE_KEY` (también se admite DER en base64). La clave
+pública debe ser URL-safe base64. Mantén el mismo par VAPID mientras existan
+suscripciones activas.
+
+La app actual guarda cuentas solo en el navegador, así que las preferencias push
+se asocian a cada suscripción/dispositivo y a sus puentes seleccionados. La API no
+recibe contraseñas ni autentica esas cuentas locales.
+
+Endpoints:
+
+- `GET /notificaciones/clave-publica`: entrega `{ "publicKey": "..." }` o `503`
+  si faltan variables VAPID.
+- `POST /notificaciones/suscripciones`: recibe `subscription`, `enabled` y
+  `bridges`; el endpoint push debe pertenecer a Apple, FCM o Mozilla.
+- `DELETE /notificaciones/suscripciones`: recibe `{ "endpoint": "..." }`.
