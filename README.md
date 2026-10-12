@@ -1,244 +1,37 @@
-# API CRUD de Usuarios — Flask + PostgreSQL (Neon)
+# API MayuAlert
 
-Este proyecto es una introducción práctica a cómo construir una API REST
-con Python. El código está separado en unos pocos archivos, cada uno con
-una responsabilidad clara, para que sea fácil de seguir.
+API REST para monitorear puentes del rio Rimac. El backend usa Flask y Neon PostgreSQL.
 
-## 1. Conceptos básicos
+## Datos principales
 
-- **API**: un programa que recibe peticiones y responde con datos (en
-  nuestro caso, en formato JSON).
-- **REST**: un estilo de diseño de APIs que usa los métodos HTTP para
-  indicar la acción que se quiere hacer:
-  - `GET` → leer datos
-  - `POST` → crear algo nuevo
-  - `PUT` → actualizar algo que ya existe
-  - `DELETE` → borrar algo
-- **CRUD**: Create, Read, Update, Delete — las 4 operaciones básicas que
-  casi todas las APIs implementan. Eso es justo lo que hace este proyecto,
-  sobre una tabla de "usuarios".
-- **Endpoint**: una URL específica de la API a la que le puedes hacer una
-  petición. Ejemplo: `GET /usuarios` es un endpoint.
-- **JSON**: el formato de texto que usamos para enviar y recibir datos.
-  Se ve así: `{"nombre": "Ana", "edad": 25}`.
-- **ORM (SQLAlchemy)**: en vez de escribir SQL a mano
-  (`SELECT * FROM usuarios`), escribimos código Python
-  (`Usuario.query.all()`) y la librería SQLAlchemy lo traduce a SQL.
+- `lecturas_puente`: ultima lectura y estado actual de cada puente.
+- `historial_estados_puente`: cambios de estado registrados por un trigger de Neon.
+- `push_subscriptions`: dispositivos y puentes seleccionados para recibir avisos Web Push.
 
-## 2. Cómo están organizados los archivos
+La API tambien contiene endpoints de alertas para registrar y consultar lecturas. Las notificaciones push se envian cuando una lectura cambia a un estado critico. La aplicacion web consulta los datos actuales desde `/alertas` y el historial desde `/alertas/historial`.
 
-| Archivo             | ¿Qué hace?                                                        |
-|----------------------|--------------------------------------------------------------------|
-| `run.py`             | Punto de entrada. Arma la app y arranca el servidor.               |
-| `config.py`          | Configuración y conexión a la base de datos (Neon).                |
-| `models.py`          | Define cómo se ve la tabla "usuarios".                             |
-| `routes.py`          | Los endpoints: qué pasa cuando llega cada petición.                 |
-| `requirements.txt`   | Lista de librerías que hay que instalar.                            |
-| `.env`               | Tu cadena de conexión secreta a Neon (tú la creas, no se comparte). |
+## Ejecutar localmente
 
-**Cómo se conectan entre sí:** `config.py` no depende de nada.
-`models.py` solo depende de Flask-SQLAlchemy. `routes.py` usa lo que
-define `models.py`. `run.py` junta todo (`config.py` + `models.py` +
-`routes.py`) y corre el servidor.
+1. Crear y activar un entorno virtual.
+2. Instalar dependencias con `pip install -r requirements.txt`.
+3. Copiar `.env.example` a `.env` y configurar `DATABASE_URL`.
+4. Para Web Push, configurar `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`.
+5. Ejecutar `python run.py`.
 
-## 3. Crear la base de datos en Neon (gratis)
+Swagger UI queda en `http://127.0.0.1:5001/docs/` y OpenAPI en `http://127.0.0.1:5001/openapi.json`.
 
-[Neon](https://neon.tech) es un servicio que te da una base de datos
-PostgreSQL en la nube, sin instalar nada en tu computadora.
+## Endpoints
 
-1. Entra a **https://neon.tech** y crea una cuenta gratuita.
-2. Crea un nuevo proyecto (cualquier nombre está bien).
-3. En el dashboard busca la sección **"Connection String"** (a veces
-   aparece como "Connection Details").
-4. Copia la URL. Se ve más o menos así:
+| Metodo | Ruta | Funcion |
+| --- | --- | --- |
+| GET | `/alertas` | Lista la lectura actual de cada puente. |
+| POST | `/alertas` | Registra o actualiza una lectura del sensor. |
+| GET | `/alertas/estado-actual` | Obtiene la lectura mas reciente. |
+| GET | `/alertas/historial` | Lista transiciones de estado. |
+| GET, DELETE | `/alertas/<id>` | Consulta o elimina una lectura. |
+| GET | `/notificaciones/clave-publica` | Entrega la clave publica VAPID. |
+| POST, DELETE | `/notificaciones/suscripciones` | Registra o retira un dispositivo push. |
 
-   ```
-   postgresql://usuario:contraseña@ep-xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
-   ```
+## Neon y Render
 
-## 4. Configurar el proyecto
-
-```bash
-# 1. Entra a la carpeta del proyecto
-cd flask-crud-simple
-
-# 2. Crea un entorno virtual (aísla las librerías de este proyecto)
-python3 -m venv venv
-source venv/bin/activate        # En Windows: venv\Scripts\activate
-
-# 3. Instala las librerías necesarias
-pip install -r requirements.txt
-
-# 4. Crea tu archivo de variables de entorno
-cp .env.example .env
-
-# 5. Abre .env y pega tu cadena de conexión de Neon en DATABASE_URL
-```
-
-Tu archivo `.env` debe quedar así (con tus datos reales):
-
-```
-DATABASE_URL=postgresql://usuario:contraseña@ep-xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
-```
-
-> ⚠️ El archivo `.env` **nunca** se sube a Git ni se comparte: ahí está la
-> contraseña de tu base de datos. Por eso ya está incluido en `.gitignore`.
-
-## 5. Ejecutar la API
-
-Si la base de Neon ya existía, primero ejecuta `migration_alturas.sql` si aún
-no tiene las columnas de altura. Antes de activar escrituras por puente,
-consulta duplicados con:
-
-```sql
-SELECT nombre_puente, COUNT(*)
-FROM lecturas_puente
-GROUP BY nombre_puente
-HAVING COUNT(*) > 1;
-```
-
-Resuelve manualmente cualquier duplicado (sin borrar filas automáticamente),
-y luego ejecuta `migration_historial.sql` en el SQL Editor de Neon. La
-migración se interrumpe si todavía hay nombres duplicados y crea un índice
-único por `nombre_puente`. El endpoint `POST /alertas` requiere ese nombre
-estable y actualiza la fila existente. `GET /alertas/historial` devuelve las
-transiciones de estado creadas por el trigger, con `nombre_puente`,
-`estado_anterior`, `estado_nuevo` y `fecha_cambio`.
-`GET /alertas` lista la lectura actual de cada puente. El frontend debe consultar
-`GET /alertas` para los valores actuales y `GET /alertas/historial` para mostrar
-las transiciones con `estado_anterior`, `estado_nuevo` y `fecha_cambio`.
-
-```bash
-python run.py
-```
-
-Para registrar una alerta, envía `altura_agua` en metros. `altura_puente`
-también se expresa en metros y es opcional hasta que registres esa medida:
-
-```json
-{
-  "nombre_puente": "Puente Carapongo",
-  "altura_agua": 1.25,
-  "altura_puente": 5.0,
-  "estado_puente": "normal"
-}
-```
-
-Swagger UI queda disponible en **http://127.0.0.1:5001/docs/** y la
-especificación OpenAPI en **http://127.0.0.1:5001/openapi.json**. Desde
-Swagger puedes consultar los endpoints y probar solicitudes. Para conectar
-el frontend, usa `http://127.0.0.1:5001` como URL base y rutas como
-`/usuarios` o `/alertas/estado-actual`.
-
-Verás algo como:
-
-```
- * Running on http://127.0.0.1:5001
-```
-
-La primera vez que corres el proyecto, se crea automáticamente la tabla
-`usuarios` en tu base de datos de Neon (no necesitas escribir SQL para
-eso — lo hace `db.create_all()` en `run.py`).
-
-Abre `http://127.0.0.1:5001/` en tu navegador: verás un mensaje con la
-lista de endpoints disponibles.
-
-## 6. Probar los endpoints
-
-Puedes usar `curl` desde la terminal, o herramientas como **Postman** o
-**Insomnia** si prefieres una interfaz visual.
-
-### Crear un usuario
-```bash
-curl -X POST http://127.0.0.1:5001/usuarios \
-  -H "Content-Type: application/json" \
-  -d '{"nombre": "Ana Torres", "email": "ana@example.com", "edad": 25}'
-```
-
-### Listar todos los usuarios
-```bash
-curl http://127.0.0.1:5001/usuarios
-```
-
-### Obtener un usuario por id
-```bash
-curl http://127.0.0.1:5001/usuarios/1
-```
-
-### Actualizar un usuario
-```bash
-curl -X PUT http://127.0.0.1:5001/usuarios/1 \
-  -H "Content-Type: application/json" \
-  -d '{"edad": 26}'
-```
-
-### Eliminar un usuario
-```bash
-curl -X DELETE http://127.0.0.1:5001/usuarios/1
-```
-
-## 7. Tabla de endpoints
-
-| Método | Ruta              | ¿Qué hace?                     |
-|--------|-------------------|---------------------------------|
-| GET    | `/usuarios`       | Lista todos los usuarios        |
-| GET    | `/usuarios/<id>`  | Obtiene un usuario por id       |
-| POST   | `/usuarios`       | Crea un nuevo usuario           |
-| PUT    | `/usuarios/<id>`  | Actualiza un usuario existente  |
-| DELETE | `/usuarios/<id>`  | Elimina un usuario              |
-
-## 8. Códigos de respuesta que vas a ver
-
-| Código | Significado                                              |
-|--------|--------------------------------------------------------------|
-| 200    | OK — todo salió bien                                          |
-| 201    | Created — se creó el recurso correctamente                    |
-| 400    | Bad Request — los datos enviados están mal o incompletos      |
-| 404    | Not Found — el usuario que pediste no existe                  |
-| 409    | Conflict — ya existe un usuario con ese email                  |
-
-## 9. Preguntas frecuentes
-
-**¿Por qué usamos `.env` en vez de escribir la contraseña en el código?**
-Porque si subes el código a GitHub (o lo compartes), no quieres que tu
-contraseña quede expuesta. El archivo `.env` se queda solo en tu
-computadora.
-
-**¿Qué pasa si cierro la terminal y vuelvo a correr `python run.py`?**
-Tus datos siguen ahí: están guardados en Neon (en la nube), no en tu
-computadora, así que no se pierden.
-
-**¿Puedo ver mis datos directamente en Neon?**
-Sí. En el dashboard de Neon hay un "SQL Editor" donde puedes correr
-`SELECT * FROM usuarios;` y ver tus filas directamente.
-
-## Notificaciones Web Push
-
-La API guarda una suscripción por dispositivo en `push_subscriptions`. Para Neon,
-ejecuta `migration_push_subscriptions.sql` una vez (si la tabla ya fue creada por
-`db.create_all()`, la migración es compatible). Al actualizar una lectura, la API
-envía un aviso únicamente si cambia el estado a `Alerta` o `Cerrado`; las lecturas
-que solo cambian la altura no generan avisos. Las suscripciones que el proveedor
-responda como vencidas (`404` o `410`) se eliminan automáticamente.
-
-Configura en el entorno del servidor `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y
-`VAPID_SUBJECT` (por ejemplo, `mailto:contacto@tu-dominio.pe`). La clave pública
-la entrega `GET /notificaciones/clave-publica`. La clave privada debe ser una
-variable secreta del despliegue, nunca un dato de Neon, Git ni del frontend. Para
-generar las claves localmente, ejecuta `vapid --gen`; obtén la clave pública para
-el navegador con `vapid --applicationServerKey`. Guarda el PEM de `private_key.pem`
-como secreto `VAPID_PRIVATE_KEY` (también se admite DER en base64). La clave
-pública debe ser URL-safe base64. Mantén el mismo par VAPID mientras existan
-suscripciones activas.
-
-La app actual guarda cuentas solo en el navegador, así que las preferencias push
-se asocian a cada suscripción/dispositivo y a sus puentes seleccionados. La API no
-recibe contraseñas ni autentica esas cuentas locales.
-
-Endpoints:
-
-- `GET /notificaciones/clave-publica`: entrega `{ "publicKey": "..." }` o `503`
-  si faltan variables VAPID.
-- `POST /notificaciones/suscripciones`: recibe `subscription`, `enabled` y
-  `bridges`; el endpoint push debe pertenecer a Apple, FCM o Mozilla.
-- `DELETE /notificaciones/suscripciones`: recibe `{ "endpoint": "..." }`.
+Neon guarda las lecturas, el historial y las suscripciones. Render ejecuta el backend con las variables de entorno configuradas en el servicio. La tabla de historial depende de las migraciones SQL documentadas para Neon; `db.create_all()` por si solo no crea sus triggers.

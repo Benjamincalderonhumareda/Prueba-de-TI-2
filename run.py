@@ -6,7 +6,7 @@ from flask_cors import CORS  # Habilita permisos de acceso para la App Móvil/We
 
 from config import Config
 from models import db
-from routes import usuarios_bp
+from routes import api_bp
 from flask_swagger_ui import get_swaggerui_blueprint
 from openapi import OPENAPI_SPEC
 
@@ -22,8 +22,8 @@ CORS(app)
 # 4. Conectar SQLAlchemy (models.py) con esta app
 db.init_app(app)
 
-# 5. Registrar las rutas de usuarios (routes.py) en la app
-app.register_blueprint(usuarios_bp)
+# 5. Registrar las rutas de la API de MayuAlert
+app.register_blueprint(api_bp)
 
 # Documentación interactiva para explorar y probar la API.
 app.add_url_rule("/openapi.json", "openapi_json", lambda: jsonify(OPENAPI_SPEC))
@@ -41,13 +41,8 @@ with app.app_context():
 def inicio():
     """Ruta raíz: muestra qué endpoints existen."""
     return jsonify({
-        "mensaje": "API CRUD de Usuarios y Alertas de Puente (Flask + PostgreSQL/Neon)",
+        "mensaje": "API de monitoreo de puentes MayuAlert (Flask + PostgreSQL/Neon)",
         "endpoints": {
-            "GET /usuarios": "Lista todos los usuarios",
-            "GET /usuarios/<id>": "Obtiene un usuario por su id",
-            "POST /usuarios": "Crea un nuevo usuario",
-            "PUT /usuarios/<id>": "Actualiza un usuario existente",
-            "DELETE /usuarios/<id>": "Elimina un usuario",
             "GET /alertas": "Obtiene la lectura actual de cada puente",
             "GET /alertas/historial": "Obtiene transiciones de estado (fecha descendente)",
             "GET /notificaciones/clave-publica": "Devuelve la clave pública VAPID",

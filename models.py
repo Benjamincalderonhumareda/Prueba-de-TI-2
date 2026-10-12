@@ -9,23 +9,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 db = SQLAlchemy()
 
 
-class Usuario(db.Model):
-    __tablename__ = 'usuarios'
-
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    edad = db.Column(db.Integer, nullable=True)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "nombre": self.nombre,
-            "email": self.email,
-            "edad": self.edad
-        }
-
-
 class LecturaPuente(db.Model):
     __tablename__ = 'lecturas_puente'
 
