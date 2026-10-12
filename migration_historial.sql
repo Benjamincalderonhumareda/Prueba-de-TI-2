@@ -14,8 +14,12 @@ CREATE TABLE IF NOT EXISTS historial_estados_puente (
     estado_anterior VARCHAR(20) NOT NULL,
     estado_nuevo VARCHAR(20) NOT NULL,
     datos_anteriores JSONB NOT NULL,
+    datos_nuevos JSONB,
     fecha_cambio TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE historial_estados_puente
+    ADD COLUMN IF NOT EXISTS datos_nuevos JSONB;
 
 DO $$
 BEGIN
@@ -40,6 +44,7 @@ BEGIN
             estado_anterior,
             estado_nuevo,
             datos_anteriores,
+            datos_nuevos,
             fecha_cambio
         ) VALUES (
             OLD.id,
@@ -47,6 +52,7 @@ BEGIN
             OLD.estado_puente,
             NEW.estado_puente,
             to_jsonb(OLD),
+            to_jsonb(NEW),
             CURRENT_TIMESTAMP
         );
     END IF;

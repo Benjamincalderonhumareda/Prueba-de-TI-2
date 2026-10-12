@@ -39,6 +39,7 @@ class HistorialEstadoPuente(db.Model):
     estado_anterior = db.Column(db.String(20), nullable=False)
     estado_nuevo = db.Column(db.String(20), nullable=False)
     datos_anteriores = db.Column(db.JSON().with_variant(JSONB, "postgresql"), nullable=False)
+    datos_nuevos = db.Column(db.JSON().with_variant(JSONB, "postgresql"), nullable=True)
     fecha_cambio = db.Column(db.DateTime(timezone=True), nullable=False)
 
     def to_dict(self):
@@ -49,6 +50,7 @@ class HistorialEstadoPuente(db.Model):
             "estado_anterior": self.estado_anterior,
             "estado_nuevo": self.estado_nuevo,
             "datos_anteriores": self.datos_anteriores,
+            "datos_nuevos": self.datos_nuevos,
             "fecha_cambio": self.fecha_cambio.isoformat() if self.fecha_cambio else None,
         }
 
