@@ -27,19 +27,21 @@ def _normalizar_id_puente(nombre):
     return texto[6:] if texto.startswith("puente") else texto
 
 
-def _estado_prioritario(estado):
+def _estado_notificable(estado):
     texto = unicodedata.normalize("NFD", str(estado or ""))
     texto = "".join(caracter for caracter in texto if unicodedata.category(caracter) != "Mn").lower()
     if "cerr" in texto or "critic" in texto:
         return "Cerrado"
     if "alert" in texto or "precauc" in texto:
         return "Alerta"
+    if "abier" in texto or "normal" in texto:
+        return "Abierto"
     return None
 
 
 def enviar_notificacion_transicion(nombre_puente, estado_anterior, estado_nuevo):
     """Envía un aviso prioritario a los dispositivos que siguen el puente."""
-    estado = _estado_prioritario(estado_nuevo)
+    estado = _estado_notificable(estado_nuevo)
     if not estado or str(estado_anterior).strip().casefold() == str(estado_nuevo).strip().casefold():
         return
 
@@ -58,11 +60,17 @@ def enviar_notificacion_transicion(nombre_puente, estado_anterior, estado_nuevo)
 
     clave_privada = Vapid.from_pem(private_key.encode("utf-8")) if "-----BEGIN" in private_key else private_key
     bridge_id = _normalizar_id_puente(nombre_puente)
+    titulo = {
+        "Abierto": "Puente Abierto",
+        "Alerta": "Alerta en un puente",
+        "Cerrado": "Puente cerrado",
+    }[estado]
     payload = json.dumps({
-        "title": "Puente cerrado" if estado == "Cerrado" else "Alerta en un puente",
-        "body": f"{nombre_puente}: cambió de {estado_anterior} a {estado}.",
+        "title": titulo,
+        "body": f"{nombre_puente}: cambió de estado {estado_anterior} a {estado}.",
         "bridgeId": bridge_id,
         "tag": f"mayualert-{bridge_id}",
+        "renotify": True,
     }, ensure_ascii=False)
 
     suscripciones = PushSubscription.query.filter_by(enabled=True).all()
