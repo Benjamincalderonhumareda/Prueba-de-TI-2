@@ -125,7 +125,13 @@ def registrar_alerta():
 
     valores = dict(
         altura_agua=float(altura_agua),
-        altura_puente=float(datos["altura_puente"]) if datos.get("altura_puente") is not None else None,
+        # La altura del puente es un dato de configuracion y no cambia con cada lectura del sensor.
+        # Si el cliente no la envia, conservar el valor ya guardado.
+        altura_puente=(
+            float(datos["altura_puente"])
+            if datos.get("altura_puente") is not None
+            else (lectura.altura_puente if lectura else None)
+        ),
         estado_puente=datos["estado_puente"]
     )
     if lectura:
